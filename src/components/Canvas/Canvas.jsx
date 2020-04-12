@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 import SVG_PATHS from "../../helpers/svg-paths";
 import { drawSvg } from "../../helpers/drawing-functions";
@@ -38,6 +38,7 @@ const Canvas = () => {
     enabled: false,
     dragElement: null,
   });
+  const [undoneElements, setUndoneElements] = useState([]);
 
   const { viewportWidth, viewportHeight } = useDeviceArea();
   const canvasRef = useCanvas(
@@ -127,12 +128,34 @@ const Canvas = () => {
   };
 
   const handleCanvasClear = () => {
+    setSelectedElement(null);
+    setUndoneElements((prevState) => [
+      ...prevState,
+      ...elements.map((element) => ({ ...element, selected: false })),
+    ]);
     setElements([]);
   };
 
   const handleCanvasUndo = () => {
+    if (!elements.length) return;
+    const undoneElement = elements.slice(elements.length - 1)[0];
+    setUndoneElements((prevState) => [
+      ...prevState,
+      { ...undoneElement, selected: false },
+    ]);
     setElements((prevState) => prevState.slice(0, -1));
   };
+
+  const handleCanvasRedo = () => {
+    if (!undoneElements.length) return;
+    const redoElement = undoneElements.slice(undoneElements.length - 1)[0];
+    setElements((prevState) => [...prevState, redoElement]);
+    setUndoneElements((prevState) => prevState.slice(0, -1));
+  };
+
+  useEffect(() => {
+    console.log(undoneElements);
+  }, [undoneElements]);
 
   const handleSetCanvasMode = (event) => {
     const { id } = event.target;
@@ -154,8 +177,25 @@ const Canvas = () => {
       offset,
       height,
       width,
+      name: id,
       svgOffset: { x, y },
     }));
+  };
+
+  const handleDeleteElementFromCanvas = () => {
+    if (!selectedElement) return;
+    const deletedElement = elements.find(
+      (element) => element.id === selectedElement
+    );
+    setUndoneElements((prevState) => [
+      ...prevState,
+      { ...deletedElement, selected: false },
+    ]);
+    const newElements = elements.filter(
+      (element) => element.id !== selectedElement
+    );
+    setElements(newElements);
+    setSelectedElement(null);
   };
 
   return (
@@ -165,6 +205,8 @@ const Canvas = () => {
         handleCanvasUndo={handleCanvasUndo}
         handleSetCanvasMode={handleSetCanvasMode}
         canvasMode={canvasMode}
+        handleCanvasRedo={handleCanvasRedo}
+        handleDeleteElementFromCanvas={handleDeleteElementFromCanvas}
       />
       <SvgSelector handleSelectSVG={handleSelectSVG} />
       <DrawingArea

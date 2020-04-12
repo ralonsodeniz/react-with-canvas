@@ -7,6 +7,8 @@ const CanvasControls = ({
   handleCanvasUndo,
   handleSetCanvasMode,
   canvasMode,
+  handleCanvasRedo,
+  handleDeleteElementFromCanvas,
 }) => {
   return (
     <CanvasControlsContainer>
@@ -37,8 +39,14 @@ const CanvasControls = ({
       <CustomButton type="button" onClick={handleCanvasClear}>
         Clear canvas
       </CustomButton>
+      <CustomButton type="button" onClick={handleDeleteElementFromCanvas}>
+        Delete selected element
+      </CustomButton>
       <CustomButton type="button" onClick={handleCanvasUndo}>
         Undo
+      </CustomButton>
+      <CustomButton type="button" onClick={handleCanvasRedo}>
+        Redo
       </CustomButton>
     </CanvasControlsContainer>
   );
