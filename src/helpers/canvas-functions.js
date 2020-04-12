@@ -1,7 +1,7 @@
 import checkPointInPath from "./checkPointInPath";
 import { v4 as uuidv4 } from "uuid";
 
-export const addElementToCanvas = (
+export const addSvgElementToCanvas = (
   context,
   eventX,
   eventY,
@@ -13,7 +13,6 @@ export const addElementToCanvas = (
   const { collided } = checkPointInPath(elements, context, eventX, eventY);
 
   if (collided) return;
-
   const { path } = element;
   if (!path) return;
   const id = uuidv4();
@@ -24,10 +23,11 @@ export const addElementToCanvas = (
       y: eventY,
     },
     id,
+    type: "svg",
     selected: true,
   };
   setElements([...elements, newElement]);
-  setSelectedElement(newElement);
+  setSelectedElement(id);
 };
 
 export const selectElementFromCanvas = (
@@ -46,6 +46,27 @@ export const selectElementFromCanvas = (
   collided ? setSelectedElement(collidedId) : setSelectedElement(null);
 
   return collidedId;
+};
+
+export const dragElementInCanvasStart = (
+  context,
+  eventX,
+  eventY,
+  setDragMode,
+  elements,
+  setSelectedElement
+) => {
+  const collidedId = selectElementFromCanvas(
+    context,
+    eventX,
+    eventY,
+    elements,
+    setSelectedElement
+  );
+
+  collidedId
+    ? setDragMode({ enabled: true, dragElement: collidedId })
+    : setDragMode({ enabled: false, dragElement: null });
 };
 
 export const dragElementInCanvas = (
@@ -68,6 +89,27 @@ export const dragElementInCanvas = (
           selected: true,
         }
       : { ...element, selected: false };
+  });
+
+  setElements(newArray);
+};
+
+export const freeDrawInCanvas = (
+  event,
+  canvas,
+  elements,
+  setElements,
+  freeDrawId
+) => {
+  const { clientX, clientY } = event;
+  const eventX = clientX - canvas.getBoundingClientRect().left;
+  const eventY = clientY - canvas.getBoundingClientRect().top;
+
+  const newArray = elements.map((element) => {
+    const { id, path } = element;
+    return id === freeDrawId
+      ? { ...element, path: [...path, { x: eventX, y: eventY }] }
+      : element;
   });
 
   setElements(newArray);

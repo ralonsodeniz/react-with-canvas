@@ -1,4 +1,18 @@
-export const drawSvg = (canvas, element) => {
+export default (canvas, element) => {
+  const { type } = element;
+  switch (type) {
+    case "svg":
+      drawSvg(canvas, element);
+      break;
+    case "free":
+      drawFree(canvas, element);
+      break;
+    default:
+      break;
+  }
+};
+
+const drawSvg = (canvas, element) => {
   const context = canvas.getContext("2d");
   const {
     location: { x, y },
@@ -31,4 +45,17 @@ export const drawSvg = (canvas, element) => {
   }
 
   context.restore();
+};
+
+const drawFree = (canvas, element) => {
+  const context = canvas.getContext("2d");
+  const { fillColor, path } = element;
+  context.strokeStyle = fillColor;
+  context.beginPath();
+  context.moveTo(path[0].x, path[0].y);
+  for (let point = 1; point < path.length; point++) {
+    const nextPoint = path[point];
+    context.lineTo(nextPoint.x, nextPoint.y);
+  }
+  context.stroke();
 };

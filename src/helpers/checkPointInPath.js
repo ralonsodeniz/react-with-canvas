@@ -1,6 +1,7 @@
 export default (elements, context, eventX, eventY) => {
   let collidedId;
   const collided = elements.some((element) => {
+    if (element.type !== "svg") return false;
     const {
       svgOffset: { x: offsetX, y: offsetY },
       height,

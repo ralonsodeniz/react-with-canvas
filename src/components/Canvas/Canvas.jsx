@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from "react";
+import { v4 as uuidv4 } from "uuid";
 
 import SVG_PATHS from "../../helpers/svg-paths";
-import { drawSvg } from "../../helpers/drawing-functions";
 import useDeviceArea from "../../helpers/useDeviceArea";
 import useLocalStorage from "../../helpers/useLocalStorage";
 import useCanvas from "../../helpers/useCanvas";
 import useSelectCanvasElement from "../../helpers/useSelectCanvasElement";
 import useDragCanvasElement from "../../helpers/useDragCanvasElement";
+import useFreeDrawInCanvas from "../../helpers/useFreeDrawInCanvas";
+
 import {
-  addElementToCanvas,
+  addSvgElementToCanvas,
   selectElementFromCanvas,
+  dragElementInCanvasStart,
 } from "../../helpers/canvas-functions";
 
 import SvgSelector from "../SvgSelector/SvgSelector";
@@ -17,21 +20,16 @@ import CanvasControls from "../CanvasControls/CanvasControls";
 
 import { DrawingArea } from "./Canvas.styles";
 
+const elementInitialState = {
+  fillColor: "deepskyblue",
+  shadowColor: "dodgerblue",
+  shadowBlur: 20,
+  selected: false,
+};
+
 const Canvas = () => {
   const [elements, setElements] = useLocalStorage("canvas-info", []);
-  const [element, setElement] = useState({
-    path: null,
-    scale: null,
-    svgOffset: null,
-    fillColor: "deepskyblue",
-    shadowColor: "dodgerblue",
-    shadowBlur: 20,
-    height: null,
-    width: null,
-    selected: false,
-    id: null,
-    location: null,
-  });
+  const [element, setElement] = useState(elementInitialState);
   const [canvasMode, setCanvasMode] = useState(null);
   const [selectedElement, setSelectedElement] = useState(null);
   const [dragMode, setDragMode] = useState({
@@ -39,35 +37,26 @@ const Canvas = () => {
     dragElement: null,
   });
   const [undoneElements, setUndoneElements] = useState([]);
-
+  const [freeDrawMode, setFreeDrawMode] = useState({
+    enabled: false,
+    freeDrawId: null,
+  });
   const { viewportWidth, viewportHeight } = useDeviceArea();
-  const canvasRef = useCanvas(
-    elements,
-    viewportWidth,
-    viewportHeight,
-    drawSvg,
-    SVG_PATHS
-  );
+  const canvasRef = useCanvas(elements, viewportWidth, viewportHeight);
   const canvas = canvasRef.current;
   const context = canvas && canvas.getContext("2d");
 
-  useSelectCanvasElement(
-    elements,
-    selectedElement,
-    setElements,
-    canvasMode,
-    setDragMode
-  );
+  useSelectCanvasElement(elements, selectedElement, setElements, canvasMode);
 
-  const { enabled, dragElement } = dragMode;
+  useDragCanvasElement(elements, setElements, canvasMode, dragMode, canvas);
 
-  useDragCanvasElement(
+  useFreeDrawInCanvas(
     elements,
     setElements,
     canvasMode,
-    enabled,
-    dragElement,
-    canvas
+    freeDrawMode,
+    canvas,
+    element
   );
 
   const areaModifier = 0.5;
@@ -78,8 +67,8 @@ const Canvas = () => {
     const eventY = clientY - canvas.getBoundingClientRect().top;
 
     switch (canvasMode) {
-      case "draw":
-        addElementToCanvas(
+      case "svg":
+        addSvgElementToCanvas(
           context,
           eventX,
           eventY,
@@ -103,28 +92,59 @@ const Canvas = () => {
     }
   };
 
-  const handleCanvasDragStart = (event) => {
-    if (canvasMode !== "move") return;
+  const handleCanvasMouseDown = (event) => {
     const { clientX, clientY } = event;
     const eventX = clientX - canvas.getBoundingClientRect().left;
     const eventY = clientY - canvas.getBoundingClientRect().top;
-    const collidedId = selectElementFromCanvas(
-      context,
-      eventX,
-      eventY,
-      elements,
-      setSelectedElement
-    );
 
-    collidedId
-      ? setDragMode({ enabled: true, dragElement: collidedId })
-      : setDragMode({ enabled: false, dragElement: null });
+    switch (canvasMode) {
+      case "move":
+        dragElementInCanvasStart(
+          context,
+          eventX,
+          eventY,
+          setDragMode,
+          elements,
+          setSelectedElement
+        );
+        break;
+      case "free":
+        const id = uuidv4();
+        setElements((prevState) => [
+          ...prevState,
+          {
+            ...element,
+            path: [{ x: eventX, y: eventY }],
+            type: "free",
+            id,
+          },
+        ]);
+        setFreeDrawMode({
+          enabled: true,
+          freeDrawId: id,
+        });
+        break;
+      default:
+        break;
+    }
   };
 
-  const handleCanvasDragEnd = () => {
-    if (canvasMode !== "move") return;
-    const { enabled } = dragMode;
-    enabled && setDragMode({ enabled: false, dragElement: null });
+  const handleCanvasMouseUp = (event) => {
+    switch (canvasMode) {
+      case "move":
+        const { enabled } = dragMode;
+        enabled && setDragMode({ enabled: false, dragElement: null });
+        break;
+      case "free":
+        freeDrawMode &&
+          setFreeDrawMode({
+            enabled: false,
+            freeDrawId: null,
+          });
+        break;
+      default:
+        break;
+    }
   };
 
   const handleCanvasClear = () => {
@@ -153,11 +173,8 @@ const Canvas = () => {
     setUndoneElements((prevState) => prevState.slice(0, -1));
   };
 
-  useEffect(() => {
-    console.log(undoneElements);
-  }, [undoneElements]);
-
   const handleSetCanvasMode = (event) => {
+    setElement(elementInitialState);
     const { id } = event.target;
     setCanvasMode(id);
   };
@@ -169,15 +186,15 @@ const Canvas = () => {
 
     const { height, width, x, y } = target.getBBox();
 
-    const { scale, offset, path } = SVG_PATHS[id];
+    const { scale, path } = SVG_PATHS[id];
     setElement((prevState) => ({
       ...prevState,
       path,
       scale,
-      offset,
       height,
       width,
       name: id,
+      type: "svg",
       svgOffset: { x, y },
     }));
   };
@@ -212,8 +229,8 @@ const Canvas = () => {
       <DrawingArea
         ref={canvasRef}
         onClick={handleCanvasClick}
-        onMouseDown={handleCanvasDragStart}
-        onMouseUp={handleCanvasDragEnd}
+        onMouseDown={handleCanvasMouseDown}
+        onMouseUp={handleCanvasMouseUp}
         width={viewportWidth * areaModifier}
         height={viewportHeight * areaModifier}
       />

@@ -13,12 +13,20 @@ const CanvasControls = ({
   return (
     <CanvasControlsContainer>
       <CustomButton
-        selected={canvasMode === "draw"}
+        selected={canvasMode === "free"}
         type="button"
-        id="draw"
+        id="free"
         onClick={handleSetCanvasMode}
       >
-        Draw
+        Free draw
+      </CustomButton>
+      <CustomButton
+        selected={canvasMode === "svg"}
+        type="button"
+        id="svg"
+        onClick={handleSetCanvasMode}
+      >
+        Draw svg
       </CustomButton>
       <CustomButton
         selected={canvasMode === "select"}

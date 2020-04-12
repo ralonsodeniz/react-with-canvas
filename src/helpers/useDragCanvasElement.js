@@ -1,17 +1,11 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect } from "react";
 
 import { dragElementInCanvas } from "./canvas-functions";
 
-export default (
-  elements,
-  setElements,
-  canvasMode,
-  enabled,
-  dragElement,
-  canvas
-) => {
+export default (elements, setElements, canvasMode, dragMode, canvas) => {
   useEffect(() => {
+    const { enabled, dragElement } = dragMode;
+
     const dragElementInCanvasListener = (event) => {
       dragElementInCanvas(event, canvas, elements, dragElement, setElements);
     };
@@ -30,5 +24,5 @@ export default (
       canvas &&
         canvas.removeEventListener("mousemove", dragElementInCanvasListener);
     };
-  }, [enabled, setElements]);
+  }, [canvas, canvasMode, dragMode, elements, setElements]);
 };
